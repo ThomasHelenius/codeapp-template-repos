@@ -10,8 +10,11 @@ import {
   PromptRegistry,
   TemplateEngine,
   TestRunner,
-  PromptTest,
   TestFileSchema,
+  type Prompt,
+  type Variable,
+  type PromptTest,
+  type TestResult,
 } from '@prompt-forge/core';
 import * as yaml from 'yaml';
 
@@ -135,7 +138,7 @@ program
       let prompts = registry.list();
 
       if (options.tag) {
-        prompts = prompts.filter((p) => p.tags.includes(options.tag));
+        prompts = prompts.filter((p: { tags: string[] }) => p.tags.includes(options.tag));
       }
 
       if (prompts.length === 0) {

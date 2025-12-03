@@ -87,13 +87,15 @@ export class TemplateEngine {
     const parsed = Mustache.parse(template);
     const required = new Set<string>();
 
-    const extractVariables = (tokens: Mustache.TemplateSpans) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const extractVariables = (tokens: any[]) => {
       for (const token of tokens) {
-        if (token[0] === 'name' || token[0] === '&' || token[0] === '{') {
+        const tokenType = token[0];
+        if (tokenType === 'name' || tokenType === '&' || tokenType === '{') {
           required.add(token[1]);
-        } else if (token[0] === '#' || token[0] === '^') {
+        } else if (tokenType === '#' || tokenType === '^') {
           required.add(token[1]);
-          if (token[4]) {
+          if (token[4] && Array.isArray(token[4])) {
             extractVariables(token[4]);
           }
         }
@@ -124,13 +126,15 @@ export class TemplateEngine {
     const parsed = Mustache.parse(template);
     const names = new Set<string>();
 
-    const extract = (tokens: Mustache.TemplateSpans) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const extract = (tokens: any[]) => {
       for (const token of tokens) {
-        if (token[0] === 'name' || token[0] === '&' || token[0] === '{') {
+        const tokenType = token[0];
+        if (tokenType === 'name' || tokenType === '&' || tokenType === '{') {
           names.add(token[1].split('.')[0]);
-        } else if (token[0] === '#' || token[0] === '^') {
+        } else if (tokenType === '#' || tokenType === '^') {
           names.add(token[1].split('.')[0]);
-          if (token[4]) {
+          if (token[4] && Array.isArray(token[4])) {
             extract(token[4]);
           }
         }
