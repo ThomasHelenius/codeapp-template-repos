@@ -1,0 +1,43 @@
+{
+  "name": "@prompt-forge/core",
+  "version": "0.1.0",
+  "description": "Core library for prompt-forge",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.3.4",
+    "zod": "^3.22.4",
+    "mustache": "^4.2.0",
+    "tiktoken": "^1.0.12"
+  },
+  "devDependencies": {
+    "@types/mustache": "^4.2.5",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.4"
+  },
+  "keywords": [
+    "llm",
+    "prompts",
+    "ai",
+    "testing",
+    "versioning"
+  ],
+  "license": "MIT"
+}

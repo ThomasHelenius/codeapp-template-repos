@@ -1,0 +1,86 @@
+# LLM Gateway Configuration
+# See documentation for all options
+
+server:
+  port: 8080
+  host: 0.0.0.0
+  readTimeout: 30s
+  writeTimeout: 120s
+  cors:
+    enabled: true
+    allowedOrigins:
+      - "*"
+
+providers:
+  - name: openai
+    apiKey: ${OPENAI_API_KEY}
+    models:
+      - gpt-4
+      - gpt-4-turbo
+      - gpt-4o
+      - gpt-4o-mini
+      - gpt-3.5-turbo
+    priority: 1
+    timeout: 60s
+    maxRetries: 3
+
+  - name: anthropic
+    apiKey: ${ANTHROPIC_API_KEY}
+    models:
+      - claude-3-opus
+      - claude-3-sonnet
+      - claude-3-haiku
+      - claude-3-5-sonnet
+    priority: 2
+    timeout: 60s
+    maxRetries: 3
+
+routing:
+  defaultProvider: openai
+  modelMappings:
+    # Semantic aliases
+    fast:
+      provider: openai
+      model: gpt-3.5-turbo
+    smart:
+      provider: openai
+      model: gpt-4-turbo
+    cheap:
+      provider: anthropic
+      model: claude-3-haiku
+  fallbackChain:
+    - openai
+    - anthropic
+
+cache:
+  enabled: true
+  backend: memory
+  ttl: 1h
+  maxSize: 512  # MB
+
+rateLimit:
+  enabled: false
+  global:
+    requests: 10000
+    window: 1m
+  perKey:
+    requests: 1000
+    window: 1m
+  perModel:
+    gpt-4:
+      requests: 100
+      window: 1m
+  queuing:
+    enabled: true
+    maxQueueSize: 1000
+    maxWaitTime: 30s
+
+metrics:
+  enabled: true
+  endpoint: /metrics
+  backend: memory
+
+logging:
+  level: info
+  format: json
+  requestBody: false

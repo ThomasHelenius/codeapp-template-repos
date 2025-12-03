@@ -1,0 +1,103 @@
+version: "1.0"
+prompts:
+  - id: chat-assistant
+    name: Chat Assistant
+    description: General purpose chat assistant with persona
+    version: "1.0.0"
+    template: |
+      You are {{persona}}, a helpful assistant.
+
+      {{#context}}
+      Context:
+      {{context}}
+      {{/context}}
+
+      User: {{message}}
+
+      Respond helpfully and {{tone}}.
+    variables:
+      - name: persona
+        type: string
+        default: "a friendly AI assistant"
+      - name: message
+        type: string
+        required: true
+      - name: context
+        type: string
+        required: false
+      - name: tone
+        type: string
+        default: concisely
+    tags:
+      - chat
+      - assistant
+    metadata:
+      model: gpt-4
+      temperature: 0.7
+      maxTokens: 500
+
+  - id: json-generator
+    name: JSON Generator
+    description: Generates structured JSON from natural language
+    version: "1.0.0"
+    template: |
+      Convert the following request into valid JSON.
+
+      Schema:
+      ```json
+      {{schema}}
+      ```
+
+      Request: {{request}}
+
+      Return ONLY valid JSON, no explanation.
+    variables:
+      - name: schema
+        type: string
+        description: JSON schema or example structure
+        required: true
+      - name: request
+        type: string
+        required: true
+    tags:
+      - json
+      - structured-output
+    metadata:
+      model: gpt-4
+      temperature: 0
+      maxTokens: 1000
+
+  - id: translator
+    name: Language Translator
+    description: Translates text between languages
+    version: "1.0.0"
+    template: |
+      Translate the following text from {{source_lang}} to {{target_lang}}.
+      {{#preserve_formatting}}Preserve the original formatting.{{/preserve_formatting}}
+      {{#formal}}Use formal language.{{/formal}}
+
+      Text:
+      {{text}}
+    variables:
+      - name: text
+        type: string
+        required: true
+      - name: source_lang
+        type: string
+        default: English
+      - name: target_lang
+        type: string
+        required: true
+      - name: preserve_formatting
+        type: boolean
+        default: true
+      - name: formal
+        type: boolean
+        default: false
+    tags:
+      - translation
+      - language
+    metadata:
+      model: gpt-4
+      temperature: 0.3
+      maxTokens: 2000

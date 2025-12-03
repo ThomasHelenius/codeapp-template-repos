@@ -1,0 +1,142 @@
+version: "1.0"
+prompts:
+  # Simple greeting prompt
+  - id: greeting
+    name: Friendly Greeting
+    description: Generates a personalized greeting
+    version: "1.0.0"
+    template: |
+      Hello {{name}}! Welcome to {{company}}.
+      How can I assist you today?
+    variables:
+      - name: name
+        type: string
+        description: User's name
+        required: true
+      - name: company
+        type: string
+        description: Company name
+        default: "our platform"
+    tags:
+      - greeting
+      - customer-service
+    metadata:
+      model: gpt-3.5-turbo
+      temperature: 0.7
+      maxTokens: 100
+
+  # Text summarization prompt
+  - id: summarize
+    name: Text Summarizer
+    description: Summarizes long text into key points
+    version: "1.0.0"
+    template: |
+      Summarize the following text in {{style}} format.
+      {{#max_words}}Keep it under {{max_words}} words.{{/max_words}}
+
+      Text to summarize:
+      ---
+      {{text}}
+      ---
+
+      Provide a clear, {{tone}} summary.
+    variables:
+      - name: text
+        type: string
+        description: The text to summarize
+        required: true
+      - name: style
+        type: string
+        description: "Output style: bullet-points, paragraph, or numbered"
+        default: bullet-points
+      - name: max_words
+        type: number
+        description: Maximum words in summary
+        required: false
+      - name: tone
+        type: string
+        description: Tone of the summary
+        default: professional
+    tags:
+      - summarization
+      - text-processing
+    metadata:
+      model: gpt-4
+      temperature: 0.3
+      maxTokens: 500
+
+  # Code review prompt
+  - id: code-review
+    name: Code Reviewer
+    description: Reviews code and provides feedback
+    version: "1.0.0"
+    template: |
+      Review the following {{language}} code and provide feedback on:
+      1. Code quality and best practices
+      2. Potential bugs or issues
+      3. Performance considerations
+      4. Suggestions for improvement
+
+      {{#focus_areas}}
+      Pay special attention to: {{focus_areas}}
+      {{/focus_areas}}
+
+      Code:
+      ```{{language}}
+      {{code}}
+      ```
+
+      Provide constructive, actionable feedback.
+    variables:
+      - name: code
+        type: string
+        description: The code to review
+        required: true
+      - name: language
+        type: string
+        description: Programming language
+        default: typescript
+      - name: focus_areas
+        type: string
+        description: Specific areas to focus on
+        required: false
+    tags:
+      - code-review
+      - development
+    metadata:
+      model: gpt-4
+      temperature: 0.2
+      maxTokens: 1000
+
+  # Data extraction prompt
+  - id: extract-entities
+    name: Entity Extractor
+    description: Extracts structured data from text
+    version: "1.0.0"
+    template: |
+      Extract the following entities from the text below:
+      {{#entities}}
+      - {{.}}
+      {{/entities}}
+
+      Text:
+      {{text}}
+
+      Return the results as JSON with the entity names as keys.
+      If an entity is not found, use null for its value.
+    variables:
+      - name: text
+        type: string
+        description: Text to extract from
+        required: true
+      - name: entities
+        type: array
+        description: List of entity types to extract
+        required: true
+    tags:
+      - extraction
+      - structured-output
+    metadata:
+      model: gpt-4
+      temperature: 0
+      maxTokens: 500

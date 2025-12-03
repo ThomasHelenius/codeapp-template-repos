@@ -1,0 +1,117 @@
+version: "1.0"
+tests:
+  # Greeting tests
+  - id: greeting-basic
+    name: Basic greeting renders correctly
+    promptId: greeting
+    inputs:
+      name: Alice
+      company: Acme Inc
+    assertions:
+      - type: contains
+        value: Alice
+        message: Should include user name
+      - type: contains
+        value: Acme Inc
+        message: Should include company name
+      - type: contains
+        value: Hello
+        message: Should start with greeting
+
+  - id: greeting-default-company
+    name: Greeting uses default company
+    promptId: greeting
+    inputs:
+      name: Bob
+    assertions:
+      - type: contains
+        value: Bob
+        message: Should include user name
+      - type: contains
+        value: our platform
+        message: Should use default company name
+
+  # Summarization tests
+  - id: summarize-bullet-style
+    name: Summarizer produces bullet points
+    promptId: summarize
+    inputs:
+      text: "This is a long article about technology trends in 2024."
+      style: bullet-points
+      tone: professional
+    assertions:
+      - type: contains
+        value: bullet-points
+        message: Should mention bullet-points style
+      - type: contains
+        value: professional
+        message: Should mention professional tone
+
+  - id: summarize-with-max-words
+    name: Summarizer respects max words
+    promptId: summarize
+    inputs:
+      text: "Sample text for summarization"
+      style: paragraph
+      max_words: 50
+    assertions:
+      - type: contains
+        value: "50 words"
+        message: Should include word limit instruction
+
+  # Code review tests
+  - id: code-review-basic
+    name: Code review includes all sections
+    promptId: code-review
+    inputs:
+      code: "function hello() { console.log('world'); }"
+      language: javascript
+    assertions:
+      - type: contains
+        value: javascript
+        message: Should specify language
+      - type: contains
+        value: Code quality
+        message: Should mention code quality
+      - type: contains
+        value: bugs
+        message: Should mention bug checking
+      - type: contains
+        value: Performance
+        message: Should mention performance
+
+  - id: code-review-with-focus
+    name: Code review with focus areas
+    promptId: code-review
+    inputs:
+      code: "async function fetch() { return await api.get(); }"
+      language: typescript
+      focus_areas: "error handling and async patterns"
+    assertions:
+      - type: contains
+        value: error handling and async patterns
+        message: Should include focus areas
+
+  # Entity extraction tests
+  - id: extract-entities-basic
+    name: Entity extraction includes all entities
+    promptId: extract-entities
+    inputs:
+      text: "John Smith works at Google in New York."
+      entities:
+        - name
+        - company
+        - location
+    assertions:
+      - type: contains
+        value: "name"
+        message: Should list name entity
+      - type: contains
+        value: "company"
+        message: Should list company entity
+      - type: contains
+        value: "location"
+        message: Should list location entity
+      - type: contains
+        value: "JSON"
+        message: Should request JSON output

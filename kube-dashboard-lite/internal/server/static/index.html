@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kube Dashboard Lite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace; }
+        .status-running { color: #10b981; }
+        .status-pending { color: #f59e0b; }
+        .status-failed { color: #ef4444; }
+        .status-succeeded { color: #10b981; }
+        .status-unknown { color: #6b7280; }
+        .log-container { font-size: 12px; line-height: 1.4; }
+    </style>
+</head>
+<body class="dark bg-dark-900 text-slate-200 min-h-screen">
+    <div id="app" class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-56 bg-dark-800 border-r border-slate-700 flex flex-col">
+            <div class="p-4 border-b border-slate-700">
+                <h1 class="text-lg font-bold text-white">⎈ KDL</h1>
+                <p class="text-xs text-slate-400 mt-1" id="context-name">Loading...</p>
+            </div>
+
+            <!-- Namespace selector -->
+            <div class="p-3 border-b border-slate-700">
+                <select id="namespace-select" class="w-full bg-dark-700 border border-slate-600 rounded px-2 py-1 text-sm">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 p-2">
+                <div class="text-xs text-slate-500 uppercase tracking-wider px-2 py-2">Workloads</div>
+                <a href="#" data-view="pods" class="nav-link block px-3 py-2 rounded text-sm hover:bg-dark-700 text-white bg-dark-700">Pods</a>
+                <a href="#" data-view="deployments" class="nav-link block px-3 py-2 rounded text-sm hover:bg-dark-700 text-slate-300">Deployments</a>
+
+                <div class="text-xs text-slate-500 uppercase tracking-wider px-2 py-2 mt-4">Network</div>
+                <a href="#" data-view="services" class="nav-link block px-3 py-2 rounded text-sm hover:bg-dark-700 text-slate-300">Services</a>
+
+                <div class="text-xs text-slate-500 uppercase tracking-wider px-2 py-2 mt-4">Cluster</div>
+                <a href="#" data-view="events" class="nav-link block px-3 py-2 rounded text-sm hover:bg-dark-700 text-slate-300">Events</a>
+            </nav>
+
+            <!-- Footer -->
+            <div class="p-3 border-t border-slate-700 text-xs text-slate-500">
+                <div id="cluster-info">Loading...</div>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-dark-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
+                <div>
+                    <h2 id="view-title" class="text-lg font-semibold">Pods</h2>
+                    <p class="text-sm text-slate-400" id="view-subtitle"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="search" placeholder="Search..."
+                           class="bg-dark-700 border border-slate-600 rounded px-3 py-1 text-sm w-64">
+                    <button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">
+                        ↻ Refresh
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content area -->
+            <div id="content" class="flex-1 overflow-auto p-4">
+                <div class="text-center text-slate-400 py-8">Loading...</div>
+            </div>
+        </main>
+
+        <!-- Detail panel (hidden by default) -->
+        <aside id="detail-panel" class="w-96 bg-dark-800 border-l border-slate-700 hidden flex-col">
+            <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+                <h3 id="detail-title" class="font-semibold">Details</h3>
+                <button onclick="closeDetail()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div id="detail-content" class="flex-1 overflow-auto p-4">
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // State
+        let currentNamespace = 'default';
+        let currentView = 'pods';
+        let data = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadClusterInfo();
+            await loadNamespaces();
+            await refreshData();
+
+            // Setup navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const view = e.target.dataset.view;
+                    switchView(view);
+                });
+            });
+
+            // Setup namespace selector
+            document.getElementById('namespace-select').addEventListener('change', (e) => {
+                currentNamespace = e.target.value;
+                refreshData();
+            });
+
+            // Setup search
+            document.getElementById('search').addEventListener('input', (e) => {
+                filterData(e.target.value);
+            });
+        });
+
+        async function loadClusterInfo() {
+            try {
+                const resp = await fetch('/api/cluster');
+                const info = await resp.json();
+                document.getElementById('context-name').textContent = info.context;
+                document.getElementById('cluster-info').innerHTML =
+                    `${info.version}<br>${info.nodeCount} nodes`;
+            } catch (err) {
+                console.error('Failed to load cluster info:', err);
+            }
+        }
+
+        async function loadNamespaces() {
+            try {
+                const resp = await fetch('/api/namespaces');
+                const namespaces = await resp.json();
+                const select = document.getElementById('namespace-select');
+                select.innerHTML = namespaces.map(ns =>
+                    `<option value="${ns.name}" ${ns.name === 'default' ? 'selected' : ''}>${ns.name}</option>`
+                ).join('');
+            } catch (err) {
+                console.error('Failed to load namespaces:', err);
+            }
+        }
+
+        async function refreshData() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="text-center text-slate-400 py-8">Loading...</div>';
+
+            try {
+                let endpoint = '';
+                switch (currentView) {
+                    case 'pods':
+                        endpoint = `/api/namespaces/${currentNamespace}/pods`;
+                        break;
+                    case 'deployments':
+                        endpoint = `/api/namespaces/${currentNamespace}/deployments`;
+                        break;
+                    case 'services':
+                        endpoint = `/api/namespaces/${currentNamespace}/services`;
+                        break;
+                    case 'events':
+                        endpoint = `/api/namespaces/${currentNamespace}/events`;
+                        break;
+                }
+
+                const resp = await fetch(endpoint);
+                data[currentView] = await resp.json();
+                renderView();
+            } catch (err) {
+                content.innerHTML = `<div class="text-red-400 py-8">Error: ${err.message}</div>`;
+            }
+        }
+
+        function switchView(view) {
+            currentView = view;
+
+            // Update nav highlighting
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.dataset.view === view) {
+                    link.classList.add('bg-dark-700', 'text-white');
+                    link.classList.remove('text-slate-300');
+                } else {
+                    link.classList.remove('bg-dark-700', 'text-white');
+                    link.classList.add('text-slate-300');
+                }
+            });
+
+            // Update title
+            const titles = {
+                pods: 'Pods',
+                deployments: 'Deployments',
+                services: 'Services',
+                events: 'Events'
+            };
+            document.getElementById('view-title').textContent = titles[view];
+
+            refreshData();
+            closeDetail();
+        }
+
+        function renderView() {
+            const items = data[currentView] || [];
+            document.getElementById('view-subtitle').textContent = `${items.length} item(s)`;
+
+            switch (currentView) {
+                case 'pods':
+                    renderPods(items);
+                    break;
+                case 'deployments':
+                    renderDeployments(items);
+                    break;
+                case 'services':
+                    renderServices(items);
+                    break;
+                case 'events':
+                    renderEvents(items);
+                    break;
+            }
+        }
+
+        function renderPods(pods) {
+            const content = document.getElementById('content');
+
+            if (pods.length === 0) {
+                content.innerHTML = '<div class="text-slate-400 py-8 text-center">No pods found</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="text-slate-400 text-left">
+                        <tr>
+                            <th class="pb-2">Name</th>
+                            <th class="pb-2">Ready</th>
+                            <th class="pb-2">Status</th>
+                            <th class="pb-2">Restarts</th>
+                            <th class="pb-2">Age</th>
+                            <th class="pb-2">Node</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pods.map(pod => `
+                            <tr class="border-t border-slate-700 hover:bg-dark-800 cursor-pointer" onclick="showPodDetail('${pod.name}')">
+                                <td class="py-2 text-blue-400">${pod.name}</td>
+                                <td class="py-2">${pod.ready}</td>
+                                <td class="py-2"><span class="status-${pod.status.toLowerCase()}">${pod.status}</span></td>
+                                <td class="py-2">${pod.restarts}</td>
+                                <td class="py-2">${formatDuration(pod.age)}</td>
+                                <td class="py-2 text-slate-400">${pod.node || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderDeployments(deployments) {
+            const content = document.getElementById('content');
+
+            if (deployments.length === 0) {
+                content.innerHTML = '<div class="text-slate-400 py-8 text-center">No deployments found</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="text-slate-400 text-left">
+                        <tr>
+                            <th class="pb-2">Name</th>
+                            <th class="pb-2">Ready</th>
+                            <th class="pb-2">Up-to-date</th>
+                            <th class="pb-2">Age</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${deployments.map(d => `
+                            <tr class="border-t border-slate-700 hover:bg-dark-800">
+                                <td class="py-2 text-blue-400">${d.name}</td>
+                                <td class="py-2">${d.readyReplicas}/${d.replicas}</td>
+                                <td class="py-2">${d.updatedReplicas}</td>
+                                <td class="py-2">${formatDuration(d.age)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderServices(services) {
+            const content = document.getElementById('content');
+
+            if (services.length === 0) {
+                content.innerHTML = '<div class="text-slate-400 py-8 text-center">No services found</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="text-slate-400 text-left">
+                        <tr>
+                            <th class="pb-2">Name</th>
+                            <th class="pb-2">Type</th>
+                            <th class="pb-2">Cluster IP</th>
+                            <th class="pb-2">Ports</th>
+                            <th class="pb-2">Age</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${services.map(s => `
+                            <tr class="border-t border-slate-700 hover:bg-dark-800">
+                                <td class="py-2 text-blue-400">${s.name}</td>
+                                <td class="py-2">${s.type}</td>
+                                <td class="py-2 text-slate-400">${s.clusterIP}</td>
+                                <td class="py-2">${s.ports.join(', ')}</td>
+                                <td class="py-2">${formatDuration(s.age)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderEvents(events) {
+            const content = document.getElementById('content');
+
+            if (events.length === 0) {
+                content.innerHTML = '<div class="text-slate-400 py-8 text-center">No events found</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <div class="space-y-2">
+                    ${events.slice(0, 50).map(e => `
+                        <div class="border border-slate-700 rounded p-3 ${e.type === 'Warning' ? 'border-l-4 border-l-yellow-500' : ''}">
+                            <div class="flex justify-between items-start">
+                                <span class="font-medium ${e.type === 'Warning' ? 'text-yellow-400' : 'text-slate-200'}">${e.reason}</span>
+                                <span class="text-xs text-slate-500">${e.count}x</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mt-1">${e.message}</p>
+                            <p class="text-xs text-slate-500 mt-1">${e.object}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function showPodDetail(name) {
+            const panel = document.getElementById('detail-panel');
+            const title = document.getElementById('detail-title');
+            const content = document.getElementById('detail-content');
+
+            panel.classList.remove('hidden');
+            panel.classList.add('flex');
+            title.textContent = name;
+            content.innerHTML = '<div class="text-slate-400">Loading...</div>';
+
+            try {
+                const resp = await fetch(`/api/namespaces/${currentNamespace}/pods/${name}`);
+                const pod = await resp.json();
+
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase">Status</div>
+                            <div class="status-${pod.status.toLowerCase()} font-medium">${pod.status}</div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase">Ready</div>
+                            <div>${pod.ready}</div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase">IP</div>
+                            <div>${pod.ip || '-'}</div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase">Node</div>
+                            <div>${pod.node || '-'}</div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase mb-2">Containers</div>
+                            ${pod.containers.map(c => `
+                                <div class="border border-slate-700 rounded p-2 mb-2">
+                                    <div class="font-medium">${c.name}</div>
+                                    <div class="text-xs text-slate-400">${c.image}</div>
+                                    <div class="text-xs mt-1">
+                                        <span class="${c.ready ? 'text-green-400' : 'text-red-400'}">${c.state}</span>
+                                        ${c.restartCount > 0 ? `<span class="text-yellow-400 ml-2">${c.restartCount} restarts</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div>
+                            <button onclick="showLogs('${name}', '${pod.containers[0]?.name}')"
+                                    class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm w-full">
+                                View Logs
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                content.innerHTML = `<div class="text-red-400">Error: ${err.message}</div>`;
+            }
+        }
+
+        async function showLogs(podName, container) {
+            const content = document.getElementById('detail-content');
+            content.innerHTML = '<div class="text-slate-400">Loading logs...</div>';
+
+            try {
+                const resp = await fetch(`/api/namespaces/${currentNamespace}/pods/${podName}/logs?container=${container}&tail=100`);
+                const logs = await resp.text();
+
+                content.innerHTML = `
+                    <div class="mb-2 flex justify-between items-center">
+                        <span class="text-xs text-slate-500">Last 100 lines</span>
+                        <button onclick="showPodDetail('${podName}')" class="text-xs text-blue-400">← Back</button>
+                    </div>
+                    <pre class="log-container bg-black rounded p-2 overflow-auto max-h-96 text-slate-300">${escapeHtml(logs)}</pre>
+                `;
+            } catch (err) {
+                content.innerHTML = `<div class="text-red-400">Error: ${err.message}</div>`;
+            }
+        }
+
+        function closeDetail() {
+            const panel = document.getElementById('detail-panel');
+            panel.classList.add('hidden');
+            panel.classList.remove('flex');
+        }
+
+        function filterData(query) {
+            // Simple client-side filtering
+            const items = data[currentView] || [];
+            const filtered = items.filter(item =>
+                JSON.stringify(item).toLowerCase().includes(query.toLowerCase())
+            );
+
+            // Re-render with filtered data
+            const originalData = data[currentView];
+            data[currentView] = filtered;
+            renderView();
+            data[currentView] = originalData;
+        }
+
+        function formatDuration(ns) {
+            // ns is nanoseconds from Go's time.Duration
+            const seconds = ns / 1e9;
+            if (seconds < 60) return `${Math.floor(seconds)}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+            return `${Math.floor(seconds / 86400)}d`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

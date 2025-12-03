@@ -1,0 +1,60 @@
+# Analysis & Internal Strategy Documents
+_analysis/
+*.analysis.md
+*.strategy.md
+*.internal.md
+INTERNAL_*.md
+.planning/
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Dependencies
+node_modules/
+vendor/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+out/
+target/
+*.egg-info/
+
+# Logs & temp
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+.coverage
+
+# Package locks (keep one per project)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
