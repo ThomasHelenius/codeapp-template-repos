@@ -13,7 +13,6 @@ import {
   scan,
   formatOutput,
   formatTokenCount,
-  getTokenLimit,
   TOKEN_LIMITS,
   CompressionStrategy,
 } from '@context-window/core';
@@ -138,15 +137,15 @@ program
       );
 
       // Language breakdown
-      const langData = Object.entries(result.byLanguage)
-        .sort((a, b) => b[1] - a[1])
+      const langData = Object.entries(result.byLanguage as Record<string, number>)
+        .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
         .slice(0, 10);
 
       if (langData.length > 0) {
         console.log('\n' + chalk.bold('Languages:'));
         const langTable = [
           [chalk.dim('Language'), chalk.dim('Files'), chalk.dim('%')],
-          ...langData.map(([lang, count]) => [
+          ...langData.map(([lang, count]: [string, number]) => [
             lang,
             String(count),
             ((count / result.files.length) * 100).toFixed(1) + '%',
@@ -157,13 +156,13 @@ program
 
       // Largest files
       const largestFiles = result.files
-        .sort((a, b) => b.lines - a.lines)
+        .sort((a: { lines: number }, b: { lines: number }) => b.lines - a.lines)
         .slice(0, 5);
 
       console.log(chalk.bold('Largest Files:'));
       const fileTable = [
         [chalk.dim('File'), chalk.dim('Lines'), chalk.dim('Size')],
-        ...largestFiles.map((f) => [
+        ...largestFiles.map((f: { relativePath: string; lines: number; size: number }) => [
           f.relativePath.length > 50
             ? '...' + f.relativePath.slice(-47)
             : f.relativePath,
@@ -177,7 +176,7 @@ program
       console.log(chalk.bold('Token Estimates:'));
       const tokenEstimate = result.totalLines * 8; // Rough estimate
       const modelFit = Object.entries(TOKEN_LIMITS)
-        .filter(([, limit]) => tokenEstimate <= limit)
+        .filter(([, limit]: [string, number]) => tokenEstimate <= limit)
         .slice(0, 3);
 
       if (modelFit.length > 0) {
@@ -200,7 +199,7 @@ program
   .action(() => {
     console.log(chalk.bold('\nSupported Models:\n'));
 
-    const data = Object.entries(TOKEN_LIMITS).map(([model, limit]) => [
+    const data = Object.entries(TOKEN_LIMITS).map(([model, limit]: [string, number]) => [
       model,
       formatTokenCount(limit),
       `~${Math.floor(limit / 8).toLocaleString()} lines`,

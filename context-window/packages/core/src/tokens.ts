@@ -1,4 +1,4 @@
-import { Tiktoken, encodingForModel } from 'tiktoken';
+import { Tiktoken, encoding_for_model } from 'tiktoken';
 
 export type TokenModel = 'gpt-4' | 'gpt-4o' | 'gpt-3.5-turbo' | 'claude' | 'default';
 
@@ -7,9 +7,9 @@ let encoder: Tiktoken | null = null;
 function getEncoder(): Tiktoken {
   if (!encoder) {
     // Use cl100k_base encoding (used by GPT-4, GPT-3.5-turbo)
-    encoder = encodingForModel('gpt-4');
+    encoder = encoding_for_model('gpt-4');
   }
-  return encoder;
+  return encoder as Tiktoken;
 }
 
 export function countTokens(text: string): number {
@@ -41,7 +41,7 @@ export function truncateToTokens(text: string, maxTokens: number): string {
   }
 
   const truncated = tokens.slice(0, maxTokens);
-  return enc.decode(truncated);
+  return new TextDecoder().decode(enc.decode(truncated));
 }
 
 export function tokenStats(text: string): {
